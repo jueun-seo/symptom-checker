@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>증상 기반 진료과 추천</title>
+    <style>
+        :root {
+            --bg: #f5f5f7;
+            --card: #ffffff;
+            --text: #1d1d1f;
+            --sub: #6e6e73;
+            --line: #d2d2d7;
+            --blue: #0071e3;
+            --blue-soft: #e8f2fd;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #000000;
+                --card: #1c1c1e;
+                --text: #f5f5f7;
+                --sub: #98989d;
+                --line: #38383a;
+                --blue: #2997ff;
+                --blue-soft: #0a2a4a;
+            }
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", "Segoe UI", sans-serif;
+            -webkit-font-smoothing: antialiased;
+            line-height: 1.5;
+        }
+        .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px 140px; }
+        header { text-align: center; padding: 72px 0 40px; }
+        .eyebrow { color: var(--blue); font-weight: 600; font-size: 17px; margin: 0 0 8px; }
+        h1 {
+            font-size: clamp(32px, 6vw, 56px);
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            font-weight: 700;
+            margin: 0 0 16px;
+        }
+        header p { color: var(--sub); font-size: clamp(17px, 2.4vw, 21px); margin: 0 auto; max-width: 620px; }
+
+        section { margin-top: 48px; }
+        h2 { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 4px; }
+        .en { color: var(--sub); font-size: 14px; margin: 0 0 16px; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 12px; }
+
+        .chip { position: relative; display: block; cursor: pointer; }
+        .chip input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+        .tile {
+            height: 100%;
+            background: var(--card);
+            border-radius: 20px;
+            padding: 18px 10px 14px;
+            text-align: center;
+            border: 2px solid transparent;
+            box-shadow: 0 1px 2px rgba(0,0,0,.04);
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+            user-select: none;
+        }
+        .chip:hover .tile { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+        .chip:active .tile { transform: scale(.97); }
+        .icon { font-size: 40px; line-height: 1; margin-bottom: 10px; }
+        .name { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+        .hint { font-size: 12px; color: var(--sub); margin-top: 2px; min-height: 18px; }
+
+        .chip input:checked + .tile { border-color: var(--blue); background: var(--blue-soft); }
+        .chip input:checked + .tile::after {
+            content: "✓";
+            position: absolute; top: 10px; right: 12px;
+            width: 22px; height: 22px; border-radius: 50%;
+            background: var(--blue); color: #fff;
+            font-size: 13px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .chip input:focus-visible + .tile { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+        .bar {
+            position: fixed; left: 0; right: 0; bottom: 0;
+            background: color-mix(in srgb, var(--bg) 78%, transparent);
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            border-top: 1px solid var(--line);
+            padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
+        }
+        .bar-in { max-width: 980px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+        .count { font-size: 15px; color: var(--sub); }
+        .count b { color: var(--text); font-size: 17px; }
+        .btn {
+            appearance: none; border: 0; cursor: pointer;
+            background: var(--blue); color: #fff;
+            font: inherit; font-size: 17px; font-weight: 600;
+            padding: 12px 28px; border-radius: 980px;
+            transition: opacity .18s ease, transform .18s ease;
+        }
+        .btn:hover { opacity: .88; }
+        .btn:active { transform: scale(.97); }
+        .btn:disabled { background: var(--line); color: var(--sub); cursor: not-allowed; opacity: 1; transform: none; }
+        .notice { text-align: center; color: var(--sub); font-size: 13px; margin-top: 56px; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header>
+            <p class="eyebrow">증상 체크</p>
+            <h1>어느 진료과로 가야 할지<br>막막하시죠?</h1>
+            <p>대학병원에 가기 전, 해당하는 증상을 모두 골라주세요.<br>알맞은 진료과를 추천해 드려요.</p>
+        </header>
+
+        <form method="post" action="/result" id="form">
+            <!-- 1. 통증 -->
+            <section>
+                <h2>통증</h2>
+                <p class="en">Pain</p>
+                <div class="grid">
+                    <label class="chip"><input type="checkbox" name="symptoms" value="복통"><div class="tile"><div class="icon">🤢</div><div class="name">복통</div><div class="hint">배가 아파요</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="흉통"><div class="tile"><div class="icon">💔</div><div class="name">흉통</div><div class="hint">가슴 통증</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="두통"><div class="tile"><div class="icon">🤕</div><div class="name">두통</div><div class="hint">머리가 아파요</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="요통"><div class="tile"><div class="icon">🧍</div><div class="name">허리 통증</div><div class="hint">요통</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="관절통"><div class="tile"><div class="icon">🦴</div><div class="name">관절통</div><div class="hint">무릎·손목·어깨</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="근육통"><div class="tile"><div class="icon">💪</div><div class="name">근육통</div><div class="hint">근육이 쑤셔요</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="인후통"><div class="tile"><div class="icon">🗣️</div><div class="name">인후통</div><div class="hint">목이 따가워요</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="치통"><div class="tile"><div class="icon">🦷</div><div class="name">치통</div><div class="hint">이가 아파요</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="귀 통증"><div class="tile"><div class="icon">👂</div><div class="name">귀 통증</div><div class="hint">귀가 아파요</div></div></label>
+                </div>
+            </section>
+
+            <!-- 2. 소화기 / 위장관 증상 -->
+            <section>
+                <h2>소화기 · 위장관</h2>
+                <p class="en">Gastrointestinal</p>
+                <div class="grid">
+                    <label class="chip"><input type="checkbox" name="symptoms" value="속쓰림"><div class="tile"><div class="icon">🔥</div><div class="name">속쓰림</div><div class="hint">&nbsp;</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="소화불량"><div class="tile"><div class="icon">🍽️</div><div class="name">소화불량</div><div class="hint">&nbsp;</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="메슥거림 및 구토"><div class="tile"><div class="icon">🤮</div><div class="name">메슥거림·구토</div><div class="hint">&nbsp;</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="설사"><div class="tile"><div class="icon">🚽</div><div class="name">설사</div><div class="hint">&nbsp;</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="변비"><div class="tile"><div class="icon">😣</div><div class="name">변비</div><div class="hint">&nbsp;</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="식욕부진"><div class="tile"><div class="icon">🥣</div><div class="name">식욕부진</div><div class="hint">&nbsp;</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="복부 팽만감"><div class="tile"><div class="icon">🎈</div><div class="name">복부 팽만감</div><div class="hint">&nbsp;</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="연하곤란"><div class="tile"><div class="icon">🥴</div><div class="name">삼키기 힘듦</div><div class="hint">연하곤란</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="황달"><div class="tile"><div class="icon">🟡</div><div class="name">황달</div><div class="hint">피부·눈이 노래요</div></div></label>
+                </div>
+            </section>
+
+            <!-- 3. 호흡기 증상 -->
+            <section>
+                <h2>호흡기</h2>
+                <p class="en">Respiratory</p>
+                <div class="grid">
+                    <label class="chip"><input type="checkbox" name="symptoms" value="기침"><div class="tile"><div class="icon">😷</div><div class="name">기침</div><div class="hint">마른·가래 기침</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="호흡곤란"><div class="tile"><div class="icon">😮‍💨</div><div class="name">호흡곤란</div><div class="hint">숨이 차요</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="가래"><div class="tile"><div class="icon">💧</div><div class="name">가래</div><div class="hint">&nbsp;</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="콧물 및 코막힘"><div class="tile"><div class="icon">👃</div><div class="name">콧물·코막힘</div><div class="hint">&nbsp;</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="재채기"><div class="tile"><div class="icon">🤧</div><div class="name">재채기</div><div class="hint">&nbsp;</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="객혈"><div class="tile"><div class="icon">🩸</div><div class="name">피 섞인 가래</div><div class="hint">객혈</div></div></label>
+                </div>
+            </section>
+
+            <!-- 4. 신경계 / 정신건강 증상 -->
+            <section>
+                <h2>신경계 · 정신건강</h2>
+                <p class="en">Neurological &amp; Mental</p>
+                <div class="grid">
+                    <label class="chip"><input type="checkbox" name="symptoms" value="어지러움"><div class="tile"><div class="icon">😵‍💫</div><div class="name">어지러움</div><div class="hint">핑 도는 느낌</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="불면증"><div class="tile"><div class="icon">🌙</div><div class="name">불면증</div><div class="hint">잠들기 힘들어요</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="불안 및 초조"><div class="tile"><div class="icon">😰</div><div class="name">불안·초조</div><div class="hint">&nbsp;</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="우울감"><div class="tile"><div class="icon">😔</div><div class="name">우울감</div><div class="hint">무기력증</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="피로감"><div class="tile"><div class="icon">🥱</div><div class="name">피로감</div><div class="hint">만성 피로</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="기억력 감퇴"><div class="tile"><div class="icon">🧩</div><div class="name">기억력 감퇴</div><div class="hint">건망증</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="손발 저림"><div class="tile"><div class="icon">🖐️</div><div class="name">손발 저림</div><div class="hint">감각 이상</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="경련"><div class="tile"><div class="icon">⚡</div><div class="name">경련</div><div class="hint">발작</div></div></label>
+                </div>
+            </section>
+
+            <!-- 5. 전신 및 기타 증상 -->
+            <section>
+                <h2>전신 증상</h2>
+                <p class="en">Systemic &amp; General</p>
+                <div class="grid">
+                    <label class="chip"><input type="checkbox" name="symptoms" value="발열"><div class="tile"><div class="icon">🤒</div><div class="name">발열</div><div class="hint">열감·오한</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="체중 감소"><div class="tile"><div class="icon">📉</div><div class="name">체중 감소</div><div class="hint">이유 없는 변화</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="체중 증가 및 부종"><div class="tile"><div class="icon">🦵</div><div class="name">체중 증가·부종</div><div class="hint">&nbsp;</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="식은땀"><div class="tile"><div class="icon">💦</div><div class="name">식은땀</div><div class="hint">야간 발한</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="전신 쇠약"><div class="tile"><div class="icon">🪫</div><div class="name">전신 쇠약</div><div class="hint">기운이 없어요</div></div></label>
+                </div>
+            </section>
+
+            <!-- 6. 피부 / 비뇨생식기 / 감각기 증상 -->
+            <section>
+                <h2>피부 · 비뇨생식기 · 감각기</h2>
+                <p class="en">Skin, Urogenital &amp; Sensory</p>
+                <div class="grid">
+                    <label class="chip"><input type="checkbox" name="symptoms" value="피부 발진"><div class="tile"><div class="icon">🔴</div><div class="name">피부 발진</div><div class="hint">두드러기 포함</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="가려움증"><div class="tile"><div class="icon">🤚</div><div class="name">가려움증</div><div class="hint">소양증</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="배뇨 통증"><div class="tile"><div class="icon">🚻</div><div class="name">배뇨 통증</div><div class="hint">소변볼 때 찌릿</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="빈뇨"><div class="tile"><div class="icon">⏱️</div><div class="name">빈뇨</div><div class="hint">소변을 자주 봐요</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="혈뇨"><div class="tile"><div class="icon">🩸</div><div class="name">혈뇨</div><div class="hint">소변에 피</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="시력 저하"><div class="tile"><div class="icon">👁️</div><div class="name">시력 저하</div><div class="hint">눈이 침침해요</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="이명"><div class="tile"><div class="icon">🔔</div><div class="name">이명</div><div class="hint">귀에서 윙 소리</div></div></label>
+                    <label class="chip"><input type="checkbox" name="symptoms" value="월경 불순"><div class="tile"><div class="icon">🌸</div><div class="name">월경 불순</div><div class="hint">생리통 포함</div></div></label>
+                </div>
+            </section>
+
+            <p class="notice">이 서비스는 참고용이며 의학적 진단을 대체하지 않습니다.</p>
+
+            <div class="bar">
+                <div class="bar-in">
+                    <div class="count"><b id="n">0</b>개 선택됨</div>
+                    <button type="submit" class="btn" id="submit" disabled>진료과 추천받기</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const boxes = document.querySelectorAll('input[name="symptoms"]');
+        const n = document.getElementById('n');
+        const btn = document.getElementById('submit');
+        function update() {
+            const c = [...boxes].filter(b => b.checked).length;
+            n.textContent = c;
+            btn.disabled = c === 0;
+        }
+        boxes.forEach(b => b.addEventListener('change', update));
+        update();
+    </script>
+</body>
+</html>

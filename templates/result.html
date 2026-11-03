@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>추천 진료과 결과</title>
+    <style>
+        :root {
+            --bg: #f5f5f7;
+            --card: #ffffff;
+            --text: #1d1d1f;
+            --sub: #6e6e73;
+            --line: #d2d2d7;
+            --blue: #0071e3;
+            --blue-soft: #e8f2fd;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #000000;
+                --card: #1c1c1e;
+                --text: #f5f5f7;
+                --sub: #98989d;
+                --line: #38383a;
+                --blue: #2997ff;
+                --blue-soft: #0a2a4a;
+            }
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", "Segoe UI", sans-serif;
+            -webkit-font-smoothing: antialiased;
+            line-height: 1.5;
+        }
+        .wrap { max-width: 760px; margin: 0 auto; padding: 0 20px 80px; }
+        header { text-align: center; padding: 72px 0 32px; }
+        .eyebrow { color: var(--blue); font-weight: 600; font-size: 17px; margin: 0 0 8px; }
+        h1 { font-size: clamp(32px, 6vw, 52px); line-height: 1.1; letter-spacing: -0.02em; font-weight: 700; margin: 0 0 16px; }
+        header p { color: var(--sub); font-size: clamp(17px, 2.4vw, 21px); margin: 0; }
+
+        .selected { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 0 40px; }
+        .pill { background: var(--card); color: var(--sub); border-radius: 980px; padding: 6px 14px; font-size: 14px; }
+
+        .dept {
+            background: var(--card);
+            border-radius: 28px;
+            padding: 32px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 2px rgba(0,0,0,.04);
+            animation: rise .5s ease both;
+        }
+        .dept:nth-child(2) { animation-delay: .08s; }
+        .dept:nth-child(3) { animation-delay: .16s; }
+        .dept:nth-child(n+4) { animation-delay: .24s; }
+        @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+        .dept-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+        .dept-icon {
+            width: 64px; height: 64px; border-radius: 18px;
+            background: var(--blue-soft);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 34px; flex: none;
+        }
+        .tag { color: var(--blue); font-size: 13px; font-weight: 600; margin: 0; }
+        .dept h2 { margin: 0; font-size: 28px; letter-spacing: -0.02em; line-height: 1.2; }
+        .desc { font-size: 17px; margin: 0 0 20px; }
+        .treats { background: var(--bg); border-radius: 16px; padding: 16px 18px; }
+        .treats small { display: block; color: var(--sub); font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+        .treats span { font-size: 15px; }
+
+        .actions { text-align: center; margin-top: 40px; }
+        .btn {
+            display: inline-block; text-decoration: none;
+            background: var(--blue); color: #fff;
+            font-size: 17px; font-weight: 600;
+            padding: 12px 28px; border-radius: 980px;
+            transition: opacity .18s ease, transform .18s ease;
+        }
+        .btn:hover { opacity: .88; }
+        .btn:active { transform: scale(.97); }
+        .notice { text-align: center; color: var(--sub); font-size: 13px; margin-top: 32px; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header>
+            <p class="eyebrow">추천 결과</p>
+            <h1>이 진료과를<br>추천드려요</h1>
+            <p>선택하신 증상을 바탕으로 안내해 드립니다.</p>
+        </header>
+
+        <div class="selected">
+            {% for s in symptoms %}
+                <span class="pill">{{ s }}</span>
+            {% endfor %}
+        </div>
+
+        {% for dept in departments %}
+            <article class="dept">
+                <div class="dept-head">
+                    <div class="dept-icon">{{ dept.icon }}</div>
+                    <div>
+                        <p class="tag">{{ "안내" if dept.name.startswith("AI") else "추천 진료과" }}</p>
+                        <h2>{{ dept.name }}</h2>
+                    </div>
+                </div>
+                <p class="desc">{{ dept.desc }}</p>
+                <div class="treats">
+                    <small>{{ "참고" if dept.name.startswith("AI") else "주요 진료 분야" }}</small>
+                    <span>{{ dept.treats }}</span>
+                </div>
+            </article>
+        {% endfor %}
+
+        <div class="actions">
+            <a class="btn" href="/symptom">다시 선택하기</a>
+        </div>
+        <p class="notice">이 서비스는 참고용이며 의학적 진단을 대체하지 않습니다. 증상이 심하거나 응급이라면 즉시 의료기관을 방문하세요.</p>
+    </div>
+</body>
+</html>
